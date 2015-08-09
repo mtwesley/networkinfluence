@@ -1,0 +1,15 @@
+Flask
+Flask-Uploads
+Jinja2
+MarkupSafe
+Werkzeug
+itsdangerous
+matplotlib
+numpy
+networkx
+scipy
+simplejson
+pandas
+pyexcel
+pyexcel-xls
+pyexcel-xlsx
