@@ -8,9 +8,11 @@ import pyexcel
 import pyexcel.ext.xls
 import pyexcel.ext.xlsx
 
+import json
+
 from flask import Flask, render_template, request, jsonify
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='')
 app.config.from_object(config)
 
 @app.route('/', methods=['GET', 'POST'])
@@ -50,6 +52,13 @@ def index():
                     data[value][record[title]] = record[key + ' Weight']
                     organizations.add(value)
 
+        # preparing D3.js output
+        d3 = dict()
+        d3['matrix1'] = {'nodes': [], 'links': []}
+        d3['matrix2'] = {'nodes': [], 'links': []}
+        d3['matrix3'] = {'nodes': [], 'links': []}
+        d3['matrix4'] = {'nodes': [], 'links': []}
+
         # build data frame to hold information
         df1 = pandas.DataFrame(index=agents, columns=organizations, data=data).fillna(0)
 
@@ -60,13 +69,17 @@ def index():
         m1 = df1.as_matrix()
         m2 = df2.as_matrix()
 
-        # conduct matrix multipleication
+        # conduct matrix multiplication
         m3 = numpy.dot(m1, m2)
         m4 = numpy.dot(m2, m1)
 
         # fix multiplication, zero-ing agent-to-themselves
         df3 = pandas.DataFrame(index=agents, columns=agents, data=m3)
         for agent in agents:
+            d3['matrix1']['nodes'].append({'id': agent})
+            d3['matrix2']['nodes'].append({'id': agent})
+            d3['matrix3']['nodes'].append({'id': agent})
+            d3['matrix4']['nodes'].append({'id': agent})
             df3[agent][agent] = 0
 
         # fix multiplication, zero-ing organization-to-themselves
@@ -95,7 +108,6 @@ def index():
         print df3
         print df4
 
-
         # network 1
         n1 = networkx.Graph()
         n1.add_nodes_from(agents)
@@ -104,6 +116,9 @@ def index():
             for agent in agents:
                 weight = df1[organization][agent]
                 if weight:
+                    d3['matrix1']['links'].append({'source': agent,
+                                                   'target': organization,
+                                                   'weight': weight})
                     n1.add_edge(agent, organization, weight=weight)
 
         # network 2
@@ -114,6 +129,9 @@ def index():
             for organization in organizations:
                 weight = df2[agent][organization]
                 if weight:
+                    d3['matrix2']['links'].append({'source': organization,
+                                                   'target': agent,
+                                                   'weight': weight})
                     n2.add_edge(organization, agent, weight=weight)
 
         # network 3
@@ -124,6 +142,9 @@ def index():
                 if not (agent1 in n3 and agent2 in n3[agent1]):
                     weight = df3[agent1][agent2]
                     if weight:
+                        d3['matrix3']['links'].append({'source': agent1,
+                                                       'target': agent2,
+                                                       'weight': weight})
                         n3.add_edge(agent1, agent2, weight=weight)
 
         # network 4
@@ -134,12 +155,16 @@ def index():
                 if not (organization1 in n4 and organization2 in n4[organization1]):
                     weight = df4[organization1][organization2]
                     if weight:
+                        d3['matrix4']['links'].append({'source': organization1,
+                                                       'target': organization2,
+                                                       'weight': weight})
                         n4.add_edge(organization1, organization2, weight=weight)
 
-        i3 = networkx.eigenvector_centrality_numpy(n3)
+        i3 = networkx.eigenvector_centrality(n3)
         c3 = networkx.betweenness_centrality(n3)
+        dg3 = networkx.degree_centrality(n3)
 
-        i4 = networkx.eigenvector_centrality_numpy(n4)
+        i4 = networkx.eigenvector_centrality(n4)
         c4 = networkx.betweenness_centrality(n4)
 
 
@@ -147,24 +172,28 @@ def index():
 
 
         import matplotlib.pyplot as plt
-        networkx.draw(n4, with_labels=True)
-        plt.savefig('plot-n4.png')
+        networkx.draw(n3, with_labels=True)
+        plt.savefig('plot-n3.png')
 
         # networkx.draw(n4)
         # plt.savefig('plot-n4.png')
 
-
         # respond with a json
-        return jsonify({
-            "data": data,
-            "agents": agents,
-            "organizations": list(organizations),
-            "weights": weights,
-            "agent influencer": i3,
-            "agent connector": c3,
-            "organization influencer": i4,
-            "organization connector": c4
-        })
+
+        # return jsonify({
+        #     "data": data,
+        #     "agents": agents,
+        #     "organizations": list(organizations),
+        #     "weights": weights,
+        #     "agent influencer": i3,
+        #     "agent connector": c3,
+        #     "agent degree centrality": dg3,
+        #     "organization influencer": i4,
+        #     "organization connector": c4,
+        #     'd3': d3
+        # })
+
+        return render_template('index.html', json=json.dumps(d3['matrix1']))
 
     return render_template('index.html')
 
