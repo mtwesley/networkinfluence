@@ -1,6 +1,7 @@
 import pandas
 import numpy
 import networkx
+from networkx.readwrite import json_graph
 
 import config
 
@@ -14,6 +15,11 @@ from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__, static_url_path='')
 app.config.from_object(config)
+
+@app.route('/graph')
+def graph():
+    return render_template('graph.html')
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -164,8 +170,23 @@ def index():
         c3 = networkx.betweenness_centrality(n3)
         dg3 = networkx.degree_centrality(n3)
 
+        networkx.set_node_attributes(n3, 'influencer', i3)
+        networkx.set_node_attributes(n3, 'connector', c3)
+        networkx.set_node_attributes(n3, 'degree', dg3)
+
         i4 = networkx.eigenvector_centrality(n4)
         c4 = networkx.betweenness_centrality(n4)
+
+        if request.args.get('data', None):
+            return json.dumps(json_graph.node_link_data(n3))
+
+        return render_template('graph.html',
+                               df1=df1.to_html(),
+                               df2=df2.to_html(),
+                               df3=df3.to_html(),
+                               df4=df4.to_html(),
+                               data=json.dumps(json_graph.node_link_data(n3)))
+
 
 
 
@@ -180,20 +201,24 @@ def index():
 
         # respond with a json
 
-        # return jsonify({
-        #     "data": data,
-        #     "agents": agents,
-        #     "organizations": list(organizations),
-        #     "weights": weights,
-        #     "agent influencer": i3,
-        #     "agent connector": c3,
-        #     "agent degree centrality": dg3,
-        #     "organization influencer": i4,
-        #     "organization connector": c4,
-        #     'd3': d3
-        # })
+        # return jsonify(d3['matrix3'])
+
+        return jsonify({
+            "data": data,
+            "agents": agents,
+            "organizations": list(organizations),
+            "weights": weights,
+            "agent influencer": i3,
+            "agent connector": c3,
+            "agent degree centrality": dg3,
+            "organization influencer": i4,
+            "organization connector": c4,
+            'd3': d3
+        })
 
         return render_template('index.html', json=json.dumps(d3['matrix1']))
 
-    return render_template('index.html')
+    return render_template('graph.html')
+
+
 
