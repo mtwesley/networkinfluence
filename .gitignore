@@ -1,6 +1,6 @@
 *.pyc
 *.pyo
-*~
+*~*
 ._*
 venv
 venvs

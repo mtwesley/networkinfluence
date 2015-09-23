@@ -16,10 +16,6 @@ from flask import Flask, render_template, request, jsonify
 app = Flask(__name__, static_url_path='')
 app.config.from_object(config)
 
-@app.route('/graph')
-def graph():
-    return render_template('graph.html')
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -93,27 +89,6 @@ def index():
         for organization in organizations:
             df4[organization][organization] = 0
 
-        # testing results
-        # print agents
-        # print organizations
-        # print weights
-        # print data
-
-        print df1
-        print df2
-
-        # print m1
-        # print m2
-
-        print df1.index
-        print df1.columns
-
-        # print m3
-        # print m4
-
-        print df3
-        print df4
-
         # network 1
         n1 = networkx.Graph()
         n1.add_nodes_from(agents)
@@ -126,6 +101,10 @@ def index():
                                                    'target': organization,
                                                    'weight': weight})
                     n1.add_edge(agent, organization, weight=weight)
+
+        networkx.set_node_attributes(n1, 'influencer', None)
+        networkx.set_node_attributes(n1, 'connector', None)
+        networkx.set_node_attributes(n1, 'degree', None)
 
         # network 2
         n2 = networkx.Graph()
@@ -140,6 +119,10 @@ def index():
                                                    'weight': weight})
                     n2.add_edge(organization, agent, weight=weight)
 
+        networkx.set_node_attributes(n2, 'influencer', None)
+        networkx.set_node_attributes(n2, 'connector', None)
+        networkx.set_node_attributes(n2, 'degree', None)
+
         # network 3
         n3 = networkx.Graph()
         n3.add_nodes_from(agents)
@@ -152,6 +135,10 @@ def index():
                                                        'target': agent2,
                                                        'weight': weight})
                         n3.add_edge(agent1, agent2, weight=weight)
+
+        networkx.set_node_attributes(n3, 'influencer', networkx.eigenvector_centrality(n3))
+        networkx.set_node_attributes(n3, 'connector', networkx.betweenness_centrality(n3))
+        networkx.set_node_attributes(n3, 'degree', networkx.degree_centrality(n3))
 
         # network 4
         n4 = networkx.Graph()
@@ -166,59 +153,34 @@ def index():
                                                        'weight': weight})
                         n4.add_edge(organization1, organization2, weight=weight)
 
-        i3 = networkx.eigenvector_centrality(n3)
-        c3 = networkx.betweenness_centrality(n3)
-        dg3 = networkx.degree_centrality(n3)
+        networkx.set_node_attributes(n4, 'influencer', networkx.eigenvector_centrality(n4))
+        networkx.set_node_attributes(n4, 'connector', networkx.betweenness_centrality(n4))
+        networkx.set_node_attributes(n4, 'degree', networkx.degree_centrality(n4))
 
-        networkx.set_node_attributes(n3, 'influencer', i3)
-        networkx.set_node_attributes(n3, 'connector', c3)
-        networkx.set_node_attributes(n3, 'degree', dg3)
-
-        i4 = networkx.eigenvector_centrality(n4)
-        c4 = networkx.betweenness_centrality(n4)
-
-        if request.args.get('data', None):
-            return json.dumps(json_graph.node_link_data(n3))
-
-        return render_template('graph.html',
+        # output
+        return render_template('index.html',
+                               data=True,
                                df1=df1.to_html(),
                                df2=df2.to_html(),
                                df3=df3.to_html(),
                                df4=df4.to_html(),
-                               data=json.dumps(json_graph.node_link_data(n3)))
+                               n1=json.dumps(json_graph.node_link_data(n1)),
+                               n2=json.dumps(json_graph.node_link_data(n2)),
+                               n3=json.dumps(json_graph.node_link_data(n3)),
+                               n4=json.dumps(json_graph.node_link_data(n4)))
 
 
-
-
-
-
-        import matplotlib.pyplot as plt
-        networkx.draw(n3, with_labels=True)
-        plt.savefig('plot-n3.png')
+        # import matplotlib.pyplot as plt
+        # networkx.draw(n3, with_labels=True)
+        # plt.savefig('plot-n3.png')
 
         # networkx.draw(n4)
         # plt.savefig('plot-n4.png')
 
-        # respond with a json
-
-        # return jsonify(d3['matrix3'])
-
-        return jsonify({
-            "data": data,
-            "agents": agents,
-            "organizations": list(organizations),
-            "weights": weights,
-            "agent influencer": i3,
-            "agent connector": c3,
-            "agent degree centrality": dg3,
-            "organization influencer": i4,
-            "organization connector": c4,
-            'd3': d3
-        })
 
         return render_template('index.html', json=json.dumps(d3['matrix1']))
 
-    return render_template('graph.html')
+    return render_template('index.html')
 
 
 

@@ -2,7 +2,16 @@
     <head>
         <title>D3 NetworkX Test</title>
         <style>
-            #graph {
+            .graph {
+                height: 600px;
+                width: 1000px;
+                border: 1px solid #aaa;
+            }
+
+            .info {
+                width: 980px;
+                padding: 20px 10px 10px;
+                background-color: #aaa;
                 border: 1px solid #aaa;
             }
 
@@ -28,6 +37,7 @@
             }
 
             .dataframe {
+                width: 1002px;
                 border: 0px solid #000;
                 border-collapse: collapse;
             }
@@ -35,90 +45,132 @@
             .dataframe th, td {
                 padding: 5px;
             }
+
+            .upload {
+                padding: 10px;
+                width: 980px;
+                border: 1px solid #aaa;
+            }
         </style>
         <script src="js/d3.js"></script>
     </head>
     <body>
         <h1>Network Influence</h1>
-        <form method="post" enctype="multipart/form-data">
+        <form class="upload" method="post" enctype="multipart/form-data">
             Upload Spreadsheet: <input type="file" name="excel">
             <input type="submit" name="submit" value="Submit">
         </form>
         {% if data %}
-        <svg id="graph"></svg>
-        <br><br>
-        <div id="info"></div>
-        <br><strong>Matrix #1:</strong><br><br>{{ df1|safe }}
-        <br><strong>Matrix #2:</strong><br><br>{{ df2|safe }}
-        <br><strong>Matrix #3:</strong><br><br>{{ df3|safe }}
-        <br><strong>Matrix #4:</strong><br><br>{{ df4|safe }}
-        <script>
-            var width = 1000, height = 400;
-            var json = '{{ data|safe }}';
-            if (json) {
-                var data = JSON.parse(json);
-            }
+            <br><br>
+            <h2>Matrix #1:</h2>
+            <svg id="graph-n1" class="graph"></svg>
+            <div id="info-n1" class="info"></div>
+            <br>{{ df1|safe }}
 
-            var svg = d3.select("#graph")
-                .attr("width", width)
-                .attr("height", height);
+            <br><br>
+            <h2>Matrix #2:</h2>
+            <svg id="graph-n2" class="graph"></svg>
+            <div id="info-n2" class="info"></div>
+            <br>{{ df2|safe }}
 
-            var force = d3.layout.force()
-                .size([width, height])
-                .nodes(data.nodes)
-                .links(data.links)
-                .linkDistance(function(l) { return l.weight; })
-                .charge(-2000)
-                .start();
+            <br><br>
+            <h2>Matrix #3:</h2>
+            <svg id="graph-n3" class="graph"></svg>
+            <div id="info-n3" class="info"></div>
+            <br>{{ df3|safe }}
 
-            var link = svg.selectAll('.link')
-                .data(data.links)
-                .enter().append('line')
-                .attr('class', 'link')
-                .on("click", function(l) {
-                    document.getElementById('info').innerHTML =
-                        "<strong>Source: </strong> " + l.source.id+ "<br>" +
-                        "<strong>Target: </strong> " + l.target.id+ "<br>" +
-                        "<strong>Weight: </strong> " + l.weight;
-                });
+            <br><br>
+            <h2>Matrix #4:</h2>
+            <svg id="graph-n4" class="graph"></svg>
+            <div id="info-n4" class="info"></div>
+            <br>{{ df4|safe }}
 
-            var node = svg.selectAll('.node')
-                .data(data.nodes)
-                .enter().append('g')
-                .attr('class', 'node')
-                .on("click", function(d) {
-                    document.getElementById('info').innerHTML =
-                        "<strong>Name: </strong> " + d.id + "<br>" +
-                        "<strong>Influencer: </strong> " + d.influencer + "<br>" +
-                        "<strong>Connector: </strong> " + d.connector + "<br>" +
-                        "<strong>Degree: </strong> " + d.degree;
-                })
-                .call(force.drag);
+            <br><br>
+            <br><br>
 
-            node.append('circle')
-                .attr('r', function(d) {
-                    if (d.influencer > 0.10) return d.influencer * 35;
-                    else return 5
-                });
+            <script>
+                var network;
+                var networks = {}
 
-            node.append('text')
-                .text(function(d) { return d.id });
+                var width = 1000, height = 600;
 
-            force.on('tick', function() {
-                link.attr('x1', function(d) { return d.source.x; })
-                    .attr('y1', function(d) { return d.source.y; })
-                    .attr('x2', function(d) { return d.target.x; })
-                    .attr('y2', function(d) { return d.target.y; });
+                var n1_json = '{{ n2|safe }}';
+                var n2_json = '{{ n2|safe }}';
+                var n3_json = '{{ n3|safe }}';
+                var n4_json = '{{ n4|safe }}';
 
-                d3.selectAll('circle')
-                    .attr('cx', function (d) { return d.x; })
-                    .attr('cy', function (d) { return d.y; });
-            
-                d3.selectAll('text')
-                    .attr('x', function (d) { return d.x; })
-                    .attr('y', function (d) { return d.y; });
-            });
-        </script>
+                if (n1_json) networks['n1'] = JSON.parse(n1_json);
+                if (n2_json) networks['n2'] = JSON.parse(n2_json);
+                if (n3_json) networks['n3'] = JSON.parse(n3_json);
+                if (n4_json) networks['n4'] = JSON.parse(n4_json);
+
+                for (network in networks) {
+                    var data = networks[network];
+
+                    var svg = d3.select('#graph-' + network)
+                        .attr('width', width)
+                        .attr('height', height);
+
+                    var force = d3.layout.force()
+                        .size([width, height])
+                        .nodes(data.nodes)
+                        .links(data.links)
+                        .linkDistance(function(l) { return l.weight; })
+                        .charge(-2000)
+                        .start();
+
+                    var link = svg.selectAll('.link')
+                        .data(data.links)
+                        .enter().append('line')
+                        .attr('class', 'link')
+                        .attr('data-network', network)
+                        .on("click", function(l) {
+                            document.getElementById('info-' + this.getAttribute('data-network')).innerHTML =
+                                "<strong>Source: </strong> " + l.source.id+ "<br>" +
+                                "<strong>Target: </strong> " + l.target.id+ "<br>" +
+                                "<strong>Weight: </strong> " + l.weight;
+                        });
+
+                    var node = svg.selectAll('.node')
+                        .data(data.nodes)
+                        .enter().append('g')
+                        .attr('class', 'node')
+                        .attr('data-network', network)
+                        .on("click", function(d) {
+                            text = "<strong>Name: </strong> " + d.id + "<br>";
+                            if (d.influencer) text += "<strong>Influencer (Eigenvector Centrality): </strong> " + d.influencer + "<br>";
+                            if (d.connector) text += "<strong>Connector (Betweenness Centrality): </strong> " + d.connector + "<br>";
+                            if (d.degree) text += "<strong>Degree Centrality: </strong> " + d.degree;
+                            document.getElementById('info-' + this.getAttribute('data-network')).innerHTML = text;
+                        })
+                        .call(force.drag);
+
+                    node.append('circle')
+                        .attr('r', function(d) {
+                            if (d.influencer > 0.10) return d.influencer * 35;
+                            else return 5
+                        });
+
+                    node.append('text')
+                        .text(function(d) { return d.id });
+
+                    force.on('tick', function() {
+                        d3.selectAll('line')
+                            .attr('x1', function(d) { return d.source.x; })
+                            .attr('y1', function(d) { return d.source.y; })
+                            .attr('x2', function(d) { return d.target.x; })
+                            .attr('y2', function(d) { return d.target.y; });
+
+                        d3.selectAll('circle')
+                            .attr('cx', function (d) { return d.x; })
+                            .attr('cy', function (d) { return d.y; });
+
+                        d3.selectAll('text')
+                            .attr('x', function (d) { return d.x; })
+                            .attr('y', function (d) { return d.y; });
+                    });
+                }
+            </script>
         {% endif %}
     </body>
 </html>
