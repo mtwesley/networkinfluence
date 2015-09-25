@@ -3,7 +3,7 @@
         <title>D3 NetworkX Test</title>
         <style>
             .graph {
-                height: 600px;
+                height: 400px;
                 width: 1000px;
                 border: 1px solid #aaa;
             }
@@ -92,7 +92,7 @@
                 var network;
                 var networks = {}
 
-                var width = 1000, height = 600;
+                var width = 1000, height = 400;
 
                 var n1_json = '{{ n2|safe }}';
                 var n2_json = '{{ n2|safe }}';
@@ -162,12 +162,12 @@
                             .attr('y2', function(d) { return d.target.y; });
 
                         d3.selectAll('circle')
-                            .attr('cx', function (d) { return d.x; })
-                            .attr('cy', function (d) { return d.y; });
+                            .attr('cx', function(d) { return d.x = Math.max(15, Math.min(width - 15, d.x)); })
+                            .attr('cy', function(d) { return d.y = Math.max(15, Math.min(height - 15, d.y)); });
 
                         d3.selectAll('text')
-                            .attr('x', function (d) { return d.x; })
-                            .attr('y', function (d) { return d.y; });
+                            .attr('x', function(d) { return d.x; })
+                            .attr('y', function(d) { return d.y; });
                     });
                 }
             </script>
