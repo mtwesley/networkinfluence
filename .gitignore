@@ -10,4 +10,4 @@ venvs
 *.DS_Store
 node_modules
 somaja*
-
+datasets

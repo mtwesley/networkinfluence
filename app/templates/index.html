@@ -49,6 +49,22 @@
                 border-color: #aaa;
             }
 
+            .files {
+                padding: 10px;
+                width: 980px;
+                border: 1px solid #aaa;
+            }
+
+            .files a, .files a:visited {
+                color: #333;
+                text-decoration: none;
+            }
+
+            .files a:hover {
+                text-decoration: underline;
+                font-weight: bold;
+            }
+
             .upload {
                 padding: 10px;
                 width: 980px;
@@ -76,10 +92,16 @@
     <body>
         <h1>Network Influence</h1>
         <form class="upload" method="post" enctype="multipart/form-data">
-            Upload Spreadsheet: <input type="file" name="excel">
-            <input type="submit" name="submit" value="Submit">
+            <strong>New Network Name:</strong> <input type="text" name="network"  onkeyup="this.value = this.value.replace(/[^a-z0-9_]/, '')"><br><br>
+            <strong>Upload Spreadsheet:</strong> <input type="file" name="excel"><br><br>
+            <input type="submit" name="submit" value="Upload New Network">
         </form>
-        {% if data %}
+        <div class="files">
+            {% for f in files %}
+            <a href="/?network={{ f }}">{{ f }}</a> &nbsp; &nbsp;
+            {% endfor %}
+        </div>
+        {% if network_name %}
             <br><br>
             <h2>Matrix #1:</h2>
             <svg id="graph-n1" class="graph"></svg>
@@ -118,156 +140,161 @@
                 var width = 1000;
                 var height = 400;
 
-                var n1_json = '{{ n1|safe }}';
-                var n2_json = '{{ n2|safe }}';
-                var n3_json = '{{ n3|safe }}';
-                var n4_json = '{{ n4|safe }}';
+{#                var n1_json = "{{ n1|safe }}";#}
+{#                var n2_json = "{{ n2|safe }}";#}
+{#                var n3_json = "{{ n3|safe }}";#}
+{#                var n4_json = "{{ n4|safe }}";#}
 
-                if (n1_json) networks['n1'] = JSON.parse(n1_json);
-                if (n2_json) networks['n2'] = JSON.parse(n2_json);
-                if (n3_json) networks['n3'] = JSON.parse(n3_json);
-                if (n4_json) networks['n4'] = JSON.parse(n4_json);
+{#                if (n1_json) networks['n1'] = JSON.parse(n1_json);#}
+{#                if (n2_json) networks['n2'] = JSON.parse(n2_json);#}
+{#                if (n3_json) networks['n3'] = JSON.parse(n3_json);#}
+{#                if (n4_json) networks['n4'] = JSON.parse(n4_json);#}
 
-                for (network in networks) {
-                    var data = networks[network];
+                d3.json('/network/{{ network_name }}', function(error, json) {
 
-                    var graph_svg = d3.select('#graph-' + network)
-                        .attr('width', width)
-                        .attr('height', height);
+                    networks = json;
 
-                    var force = d3.layout.force()
-                        .size([width, height])
-                        .nodes(data.nodes)
-                        .links(data.links)
-                        .linkDistance(function(l) { return l.weight; })
-                        .charge(-2000)
-                        .start();
+                    for (network in networks) {
+                        var data = networks[network];
 
-                    var link = graph_svg.selectAll('.link')
-                        .data(data.links)
-                        .enter().append('g')
-                        .attr('class', 'link')
-                        .attr('data-network', network)
-                        .on("click", function(l) {
-                            document.getElementById('graph-info-' + this.getAttribute('data-network')).innerHTML =
-                                "<strong>Source: </strong> " + l.source.id+ "<br>" +
-                                "<strong>Target: </strong> " + l.target.id+ "<br>" +
-                                "<strong>Weight: </strong> " + l.weight;
-                        });
+                        var graph_svg = d3.select('#graph-' + network)
+                            .attr('width', width)
+                            .attr('height', height);
 
-                    link.append('line');
+                        var force = d3.layout.force()
+                            .size([width, height])
+                            .nodes(data.nodes)
+                            .links(data.links)
+                            .linkDistance(function(l) { return l.weight; })
+                            .charge(-2000)
+                            .start();
 
-                    var node = graph_svg.selectAll('.node')
-                        .data(data.nodes)
-                        .enter().append('g')
-                        .attr('class', 'node')
-                        .attr('data-network', network)
-                        .on("click", function(d) {
-                            text = "<strong>Name: </strong> " + d.id + "<br>";
-                            if (d.influencer !== null) text += "<strong>Influencer (Eigenvector Centrality): </strong> " + d.influencer.toFixed(3) + "<br>";
-                            if (d.connector !== null) text += "<strong>Connector (Betweenness Centrality): </strong> " + d.connector.toFixed(3) + "<br>";
-                            if (d.degree !== null) text += "<strong>Degree Centrality: </strong> " + d.degree.toFixed(3);
-                            document.getElementById('graph-info-' + this.getAttribute('data-network')).innerHTML = text;
-                        })
-                        .call(force.drag);
+                        var link = graph_svg.selectAll('.link')
+                            .data(data.links)
+                            .enter().append('g')
+                            .attr('class', 'link')
+                            .attr('data-network', network)
+                            .on("click", function(l) {
+                                document.getElementById('graph-info-' + this.getAttribute('data-network')).innerHTML =
+                                    "<strong>Source: </strong> " + l.source.id+ "<br>" +
+                                    "<strong>Target: </strong> " + l.target.id+ "<br>" +
+                                    "<strong>Weight: </strong> " + l.weight;
+                            });
 
-                    node.append('circle')
-                        .attr('r', function(d) {
-                            if (d.influencer > 0.10) return d.influencer * 35;
-                            else return 5
-                        });
+                        link.append('line');
 
-                    node.append('text')
-                        .text(function(d) { return d.id });
-
-                    force.on('tick', function() {
-                        d3.selectAll('.graph line')
-                            .attr('x1', function(d) { return d.source.x; })
-                            .attr('y1', function(d) { return d.source.y; })
-                            .attr('x2', function(d) { return d.target.x; })
-                            .attr('y2', function(d) { return d.target.y; });
-
-                        d3.selectAll('.graph circle')
-                            .attr('cx', function(d) { return d.x = Math.max(15, Math.min(width - 15, d.x)); })
-                            .attr('cy', function(d) { return d.y = Math.max(15, Math.min(height - 15, d.y)); });
-
-                        d3.selectAll('.graph text')
-                            .attr('x', function(d) { return d.x; })
-                            .attr('y', function(d) { return d.y; });
-                    });
-
-                    if (network == 'n3' || network == 'n4') {
-                        var chart_margin = {
-                            top: 30,
-                            right: 15,
-                            bottom: 40,
-                            left: 50
-                        }
-
-                        var chart_width = width - chart_margin.left - chart_margin.right;
-                        var chart_height = height - chart_margin.top - chart_margin.bottom;
-
-                        var x = d3.scale.linear()
-                            .range([0, chart_width])
-                            .domain([-0.01, d3.max(data.nodes, function(d) { return d.influencer; }) + 0.01]);
-
-                        var y = d3.scale.linear()
-                            .range([chart_height, 0])
-                            .domain([-0.02, d3.max(data.nodes, function(d) { return d.connector; }) + 0.02]);
-
-                        var chart = d3.select('#chart-' + network)
-                            .attr('width', chart_width + chart_margin.right + chart_margin.left)
-                            .attr('height', chart_height + chart_margin.top + chart_margin.bottom)
-                            .attr('class', 'chart')
-
-                        var area = chart.append('g')
-                            .attr('transform', 'translate(' + chart_margin.left + ',' + chart_margin.top + ')')
-                            .attr('width', chart_width)
-                            .attr('height', chart_height)
-                            .attr('class', 'area')
-
-                        var xAxis = d3.svg.axis()
-                            .scale(x)
-                            .orient('bottom');
-
-                        var yAxis = d3.svg.axis()
-                            .scale(y)
-                            .orient('left');
-
-                        area.append('g')
-                            .attr('transform', 'translate(0,' + chart_height + ')')
-                            .attr('class', 'x-axis axis')
-                            .call(xAxis);
-
-                        area.append('g')
-                            .attr('transform', 'translate(0,0)')
-                            .attr('class', 'y-axis axis')
-                            .call(yAxis);
-
-                        var dot = area.selectAll(".dot")
+                        var node = graph_svg.selectAll('.node')
                             .data(data.nodes)
                             .enter().append('g')
-                            .attr('class', 'dot')
+                            .attr('class', 'node')
                             .attr('data-network', network)
                             .on("click", function(d) {
                                 text = "<strong>Name: </strong> " + d.id + "<br>";
                                 if (d.influencer !== null) text += "<strong>Influencer (Eigenvector Centrality): </strong> " + d.influencer.toFixed(3) + "<br>";
                                 if (d.connector !== null) text += "<strong>Connector (Betweenness Centrality): </strong> " + d.connector.toFixed(3) + "<br>";
                                 if (d.degree !== null) text += "<strong>Degree Centrality: </strong> " + d.degree.toFixed(3);
-                                document.getElementById('chart-info-' + this.getAttribute('data-network')).innerHTML = text;
+                                document.getElementById('graph-info-' + this.getAttribute('data-network')).innerHTML = text;
+                            })
+                            .call(force.drag);
+
+                        node.append('circle')
+                            .attr('r', function(d) {
+                                if (d.influencer > 0.10) return d.influencer * 35;
+                                else return 5
                             });
 
-                        dot.append("circle")
-                            .attr("cx", function (d) { return x(d.influencer); } )
-                            .attr("cy", function (d) { return y(d.connector); } )
-                            .attr("r", 6);
+                        node.append('text')
+                            .text(function(d) { return d.id });
 
-                        dot.append('text')
-                            .text(function(d) { return d.id })
-                            .attr('x', function(d) { return x(d.influencer); })
-                            .attr('y', function(d) { return y(d.connector); });
+                        force.on('tick', function() {
+                            d3.selectAll('.graph line')
+                                .attr('x1', function(d) { return d.source.x; })
+                                .attr('y1', function(d) { return d.source.y; })
+                                .attr('x2', function(d) { return d.target.x; })
+                                .attr('y2', function(d) { return d.target.y; });
+
+                            d3.selectAll('.graph circle')
+                                .attr('cx', function(d) { return d.x = Math.max(15, Math.min(width - 15, d.x)); })
+                                .attr('cy', function(d) { return d.y = Math.max(15, Math.min(height - 15, d.y)); });
+
+                            d3.selectAll('.graph text')
+                                .attr('x', function(d) { return d.x; })
+                                .attr('y', function(d) { return d.y; });
+                        });
+
+                        if (network == 'n3' || network == 'n4') {
+                            var chart_margin = {
+                                top: 30,
+                                right: 15,
+                                bottom: 40,
+                                left: 50
+                            }
+
+                            var chart_width = width - chart_margin.left - chart_margin.right;
+                            var chart_height = height - chart_margin.top - chart_margin.bottom;
+
+                            var x = d3.scale.linear()
+                                .range([0, chart_width])
+                                .domain([-0.01, d3.max(data.nodes, function(d) { return d.influencer; }) + 0.01]);
+
+                            var y = d3.scale.linear()
+                                .range([chart_height, 0])
+                                .domain([-0.02, d3.max(data.nodes, function(d) { return d.connector; }) + 0.02]);
+
+                            var chart = d3.select('#chart-' + network)
+                                .attr('width', chart_width + chart_margin.right + chart_margin.left)
+                                .attr('height', chart_height + chart_margin.top + chart_margin.bottom)
+                                .attr('class', 'chart')
+
+                            var area = chart.append('g')
+                                .attr('transform', 'translate(' + chart_margin.left + ',' + chart_margin.top + ')')
+                                .attr('width', chart_width)
+                                .attr('height', chart_height)
+                                .attr('class', 'area')
+
+                            var xAxis = d3.svg.axis()
+                                .scale(x)
+                                .orient('bottom');
+
+                            var yAxis = d3.svg.axis()
+                                .scale(y)
+                                .orient('left');
+
+                            area.append('g')
+                                .attr('transform', 'translate(0,' + chart_height + ')')
+                                .attr('class', 'x-axis axis')
+                                .call(xAxis);
+
+                            area.append('g')
+                                .attr('transform', 'translate(0,0)')
+                                .attr('class', 'y-axis axis')
+                                .call(yAxis);
+
+                            var dot = area.selectAll(".dot")
+                                .data(data.nodes)
+                                .enter().append('g')
+                                .attr('class', 'dot')
+                                .attr('data-network', network)
+                                .on("click", function(d) {
+                                    text = "<strong>Name: </strong> " + d.id + "<br>";
+                                    if (d.influencer !== null) text += "<strong>Influencer (Eigenvector Centrality): </strong> " + d.influencer.toFixed(3) + "<br>";
+                                    if (d.connector !== null) text += "<strong>Connector (Betweenness Centrality): </strong> " + d.connector.toFixed(3) + "<br>";
+                                    if (d.degree !== null) text += "<strong>Degree Centrality: </strong> " + d.degree.toFixed(3);
+                                    document.getElementById('chart-info-' + this.getAttribute('data-network')).innerHTML = text;
+                                });
+
+                            dot.append("circle")
+                                .attr("cx", function (d) { return x(d.influencer); } )
+                                .attr("cy", function (d) { return y(d.connector); } )
+                                .attr("r", 6);
+
+                            dot.append('text')
+                                .text(function(d) { return d.id })
+                                .attr('x', function(d) { return x(d.influencer); })
+                                .attr('y', function(d) { return y(d.connector); });
+                        }
                     }
-                }
+                 });
 
             </script>
         {% endif %}
